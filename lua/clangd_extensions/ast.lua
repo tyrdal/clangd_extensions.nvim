@@ -28,7 +28,10 @@ local function setup_hl_autocmd(source_buf, ast_buf)
         ast_buf = { ast_buf, { "number" } },
     })
 
-    local group = augroup("ClangdExtensions", {})
+    -- <<<claude>>> `clear = false`: every AST buffer registers its own
+    -- buffer-local autocmds in this group, so clearing it would drop the ones
+    -- belonging to AST buffers that are still open
+    local group = augroup("ClangdExtensions", { clear = false })
     autocmd("CursorMoved", {
         group = group,
         buffer = ast_buf,
@@ -38,6 +41,11 @@ local function setup_hl_autocmd(source_buf, ast_buf)
         group = group,
         buffer = ast_buf,
         callback = function() M.clear_highlight(source_buf) end,
+    })
+    autocmd("BufWipeout", {
+        group = group,
+        buffer = ast_buf,
+        callback = function() M.forget_buf(source_buf, ast_buf) end,
     })
 end
 
@@ -252,6 +260,23 @@ function M.update_highlight(source_buf, ast_buf)
             priority = 110,
         }
     )
+end
+
+---<<<claude>>> Drop the bookkeeping for a wiped AST buffer
+---@param source_buf integer
+---@param ast_buf integer
+function M.forget_buf(source_buf, ast_buf)
+    utils.validate({
+        source_buf = { source_buf, { "number" } },
+        ast_buf = { ast_buf, { "number" } },
+    })
+
+    M.detail_pos[ast_buf] = nil
+
+    if not M.node_pos[source_buf] then return end
+
+    M.node_pos[source_buf][ast_buf] = nil
+    if next(M.node_pos[source_buf]) == nil then M.node_pos[source_buf] = nil end
 end
 
 ---@param line1 integer
