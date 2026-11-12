@@ -28,6 +28,8 @@ M.options = {
         highlights = {
             detail = "Comment",
         },
+
+        border = "none",
     },
 
     memory_usage = {

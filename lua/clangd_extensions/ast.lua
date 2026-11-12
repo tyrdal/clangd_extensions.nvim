@@ -18,6 +18,10 @@ M.node_pos = {}
 --- position of `detail` in line no. `linenum` of `ast_buf`
 M.detail_pos = {}
 
+--- <<<claude>>> arcana[ast_buf][linenum] = arcana
+--- full clangd dump of the node corresponding to line no. `linenum` of `ast_buf`
+M.arcana = {}
+
 M.nsid = api.nvim_create_namespace("clangd_extensions")
 
 ---@param source_buf integer
@@ -135,6 +139,8 @@ local function walk_tree(node, visited, result, padding, hl_bufs)
         }
     end
 
+    if node.arcana then M.arcana[hl_bufs.ast_buf][result_len] = node.arcana end
+
     if node.range then
         M.node_pos[hl_bufs.source_buf][hl_bufs.ast_buf][result_len] = {
             start = { node.range.start.line, node.range.start.character },
@@ -197,6 +203,7 @@ local function handler(err, ASTNode)
 
     M.node_pos[source_buf][ast_buf] = {}
     M.detail_pos[ast_buf] = {}
+    M.arcana[ast_buf] = {}
 
     local lines = walk_tree(
         ASTNode,
@@ -223,6 +230,13 @@ local function handler(err, ASTNode)
         pcall(vim.api.nvim_buf_delete, ast_buf, { force = true })
         pcall(vim.api.nvim_win_close, ast_win, true)
     end, { buffer = ast_buf })
+
+    vim.keymap.set(
+        "n",
+        "K",
+        function() M.show_arcana(ast_buf) end,
+        { buffer = ast_buf }
+    )
 end
 
 ---@param source_buf integer
@@ -272,11 +286,39 @@ function M.forget_buf(source_buf, ast_buf)
     })
 
     M.detail_pos[ast_buf] = nil
+    M.arcana[ast_buf] = nil
 
     if not M.node_pos[source_buf] then return end
 
     M.node_pos[source_buf][ast_buf] = nil
     if next(M.node_pos[source_buf]) == nil then M.node_pos[source_buf] = nil end
+end
+
+---<<<claude>>> Show the full clangd dump (`arcana`) of the node under the cursor
+---@param ast_buf integer
+function M.show_arcana(ast_buf)
+    utils.validate({ ast_buf = { ast_buf, { "number" } } })
+
+    local curline = vim.fn.getcurpos()[2]
+    local arcana = M.arcana[ast_buf] and M.arcana[ast_buf][curline]
+    if not arcana then return end
+
+    local buf, win = vim.lsp.util.open_floating_preview(
+        vim.split(arcana, "\n", { trimempty = true }),
+        "",
+        {
+            focusable = false,
+            focus = false,
+            wrap = true,
+            max_width = math.floor(vim.o.columns * 0.8),
+            border = conf.border,
+        }
+    )
+
+    vim.keymap.set("n", "q", function()
+        pcall(api.nvim_buf_delete, buf, { force = true })
+        pcall(api.nvim_win_close, win, true)
+    end, { buffer = buf })
 end
 
 ---@param line1 integer

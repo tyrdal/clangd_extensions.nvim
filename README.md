@@ -62,6 +62,9 @@ require("clangd_extensions").setup({
         highlights = {
             detail = "Comment",
         },
+
+        -- border of the floating window that `K` opens on an AST node
+        border = "none",
     },
     memory_usage = {
         border = "none",
@@ -92,6 +95,13 @@ You can fold nodes using `zc` and friends - the AST window has `shiftwidth=2` an
 
 `:ClangdAST` to view the ast with the current line as the range, `:'<,'>ClangdAST` with a visual selection to view the ast with the selected lines as range.
 See how ranges are handled at https://clangd.llvm.org/extensions#ast
+
+<!-- <<<claude>>> -->
+The AST window shows a simplified description of each node. Press `K` on a node
+to open a floating window with its `arcana` - clangd's full dump of the node,
+including its address, type and sugar. `K` is a no-op on the rare node that
+clangd sends no `arcana` for. Style the floating window with the `ast.border`
+option.
 
 ### [Completion Scores](https://clangd.llvm.org/extensions#code-completion-scores)
 
